@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+    --nccc-blue: #ebf2fa;
+    --nccc-gray: #848889;
+    --nccc-navy: #2d3092;
+    --nccc-charcoal: #1d1e18;
+    --nccc-secondary: #252755;
+}
+
+@layer components {
+    .background-overlay {
+        @apply fixed inset-0 z-0 bg-cover bg-center opacity-45;
+        background-image: url('/images/login-bg.jpg'); /* Public path */
+        filter: blur(2px);
+    }
+
+    .glass-panel {
+        background: rgba(255, 255, 255, 0.4);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        box-shadow: 0 8px 32px 0 rgba(45, 48, 146, 0.1);
+    }
+
+    .form-input {
+        background: rgba(255, 255, 255, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        @apply w-full px-5 py-3 rounded-xl transition-all outline-none;
+    }
+
+    .form-input:focus {
+        border-color: var(--nccc-navy);
+        background: rgba(255, 255, 255, 0.9);
+        box-shadow: 0 0 0 4px rgba(45, 48, 146, 0.1);
+    }
+}
