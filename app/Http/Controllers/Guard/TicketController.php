@@ -85,7 +85,7 @@ class TicketController extends Controller
     {
         $request->validate([
             'plate_number' => 'required|string|max:20',
-            'is_delivery' => 'boolean',
+            'vehicle_type' => 'required|in:standard,pwd,delivery',
         ]);
 
         DB::beginTransaction();
@@ -101,18 +101,50 @@ class TicketController extends Controller
                 $vehicle->increment('total_visits');
             }
 
-            // Auto-assign available slot
+            // Determine slot type based on vehicle type
+            $requiredSlotType = $request->vehicle_type === 'pwd' ? 'wheelchair' : $request->vehicle_type;
+            
+            // Auto-assign available slot based on vehicle type
             $slot = ParkingSlot::where('status', 'available')
                 ->where('is_active', true)
+                ->when($requiredSlotType === 'pwd', function($query) {
+                    return $query->where('type', 'wheelchair');
+                })
+                ->when($requiredSlotType === 'delivery', function($query) {
+                    return $query->where('type', 'delivery');
+                })
+                ->when($requiredSlotType === 'standard', function($query) {
+                    return $query->where('type', 'standard');
+                })
                 ->first();
 
+            // If no PWD slot available, fallback to standard
+            if (!$slot && $requiredSlotType === 'pwd') {
+                $slot = ParkingSlot::where('status', 'available')
+                    ->where('is_active', true)
+                    ->where('type', 'standard')
+                    ->first();
+                
+                if ($slot) {
+                    // Log that PWD slot wasn't available
+                    ActivityLog::log(auth()->id(), 'pwd_slot_unavailable', null, [
+                        'plate_number' => $request->plate_number,
+                        'assigned_slot' => $slot->slot_number,
+                        'note' => 'No PWD slot available, assigned standard slot'
+                    ]);
+                }
+            }
+
             if (!$slot) {
-                return back()->with('error', 'No available parking slots!');
+                return back()->with('error', 'No available parking slots for this vehicle type!');
             }
 
             // Get current settings
             $hourlyRate = \App\Models\Setting::get('hourly_rate', 20);
             $gracePeriod = \App\Models\Setting::get('grace_period_minutes', 30);
+
+            // Determine if delivery (free parking)
+            $isDelivery = ($request->vehicle_type === 'delivery');
 
             // Generate unique QR code
             $qrCode = Str::random(32) . time();
@@ -125,7 +157,7 @@ class TicketController extends Controller
                 'entry_time' => now(),
                 'rate_at_entry' => $hourlyRate,
                 'grace_period_at_entry' => $gracePeriod,
-                'is_delivery' => $request->has('is_delivery'),
+                'is_delivery' => $isDelivery,
                 'status' => 'active',
                 'parking_slot_id' => $slot->id,
                 'issued_by' => auth()->id(),
@@ -139,18 +171,21 @@ class TicketController extends Controller
                 auth()->id(),
                 'issue_ticket',
                 $ticket->id,
-                ['plate_number' => $request->plate_number, 'slot' => $slot->slot_number]
+                [
+                    'plate_number' => $request->plate_number,
+                    'slot' => $slot->slot_number,
+                    'slot_type' => $slot->type,
+                    'vehicle_type' => $request->vehicle_type,
+                    'is_delivery' => $isDelivery
+                ]
             );
 
             DB::commit();
 
-            // Store data in session with flash
             return redirect()->route('guard.entry.form')
                 ->with('success', 'Ticket issued successfully!')
-                ->with('ticket_data', [
-                    'ticket' => $ticket,
-                    'slot' => $slot
-                ]);
+                ->with('ticket_data', ['ticket' => $ticket, 'slot' => $slot])
+                ->with('vehicle_type', $request->vehicle_type);
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -217,15 +252,18 @@ class TicketController extends Controller
                 'processed_by' => auth()->id(),
             ]);
 
-            // Free up parking slot
-            $ticket->parkingSlot->update(['status' => 'available']);
+            // FREE UP THE PARKING SLOT - THIS IS CRITICAL
+            $slot = $ticket->parkingSlot;
+            if ($slot) {
+                $slot->update(['status' => 'available']);
+            }
 
             // Log activity
             ActivityLog::log(
                 auth()->id(),
                 'process_payment',
                 $ticket->id,
-                ['amount' => $request->amount, 'method' => $request->payment_method]
+                ['amount' => $request->amount, 'method' => $request->payment_method, 'slot_freed' => $slot->slot_number ?? 'N/A']
             );
 
             DB::commit();
@@ -239,7 +277,6 @@ class TicketController extends Controller
             return back()->with('error', 'Payment failed: ' . $e->getMessage());
         }
     }
-
     public function searchByPlate(Request $request)
     {
         $request->validate([
