@@ -3,6 +3,10 @@
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
+Route::get('/', function () {
+    return redirect('customer.enhanced-availability');
+})->name('home');
+
 // API endpoint for real-time parking status (no auth required)
 Route::get('/api/parking-status', function () {
     $totalSlots = App\Models\ParkingSlot::count();
