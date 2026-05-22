@@ -10,6 +10,10 @@ Route::get('/', function () {
     return view('auth.login');
 })->name('login');
 
+Route::get('/home', function () {
+    return view('customer.enhanced-availability');
+})->name('home');
+
 // API endpoint for real-time parking status (no auth required)
 Route::get('/api/parking-status', function () {
     $totalSlots = App\Models\ParkingSlot::count();
