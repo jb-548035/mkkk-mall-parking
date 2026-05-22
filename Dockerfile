@@ -10,6 +10,8 @@ RUN apt-get update && apt-get install -y \
     libxml2-dev \
     libpng-dev \
     zip \
+    nodejs \
+    npm \
     && docker-php-ext-install pdo_mysql mbstring xml zip gd \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
@@ -17,24 +19,20 @@ RUN apt-get update && apt-get install -y \
 # Install Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# Install Node.js
-RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
-    apt-get install -y nodejs
-
 # Enable Apache rewrite
 RUN a2enmod rewrite
 
 # Set working directory
 WORKDIR /var/www/html
 
-# Copy application files
+# Copy all application files FIRST (including artisan)
 COPY . .
 
-# Debug: Check if helpers.php exists (optional, remove after successful build)
-RUN ls -la app/Helpers/ || true
+# Install PHP dependencies (skip scripts that require artisan)
+RUN composer install --no-dev --optimize-autoloader --no-interaction --no-progress --ignore-platform-req=ext-gd --no-scripts
 
-# Install PHP dependencies
-RUN composer install --no-dev --optimize-autoloader --no-interaction --ignore-platform-req=ext-gd
+# Now run the scripts after composer install
+RUN composer run-script post-autoload-dump
 
 # Install frontend dependencies and build assets
 RUN npm install && npm run build || echo "Frontend build skipped"
@@ -48,9 +46,9 @@ RUN sed -i 's/Listen 80/Listen 10000/g' /etc/apache2/ports.conf && \
 RUN printf '<Directory /var/www/html/public>\n    AllowOverride All\n    Require all granted\n</Directory>\n' > /etc/apache2/conf-available/laravel.conf && \
     a2enconf laravel
 
-# Clear config cache
-RUN php artisan config:clear && \
-    php artisan route:clear && \
+# Clear config cache (skip if artisan not available)
+RUN php artisan config:clear || true && \
+    php artisan route:clear || true && \
     php artisan view:clear || true
 
 # Create storage symlink
