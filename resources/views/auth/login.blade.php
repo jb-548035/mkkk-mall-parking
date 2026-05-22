@@ -15,7 +15,8 @@
 
             <x-auth-session-status class="mb-4 text-sm font-medium text-green-600" :status="session('status')" />
 
-            <form method="POST" action="{{ route('login') }}" id="loginForm" class="space-y-5">
+            <form method="POST" action="/login" id="loginForm" class="space-y-5">
+
                 @csrf
 
                 <div class="text-left">
