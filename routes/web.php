@@ -165,5 +165,12 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/change-password', [App\Http\Controllers\Auth\FirstLoginPasswordController::class, 'update'])->name('password.change.update');
 });
 
+Route::get('/run-migrate', function() {
+    Artisan::call('migrate --force');
+    Artisan::call('db:seed --force');
+    Artisan::call('config:cache');
+    return 'Migrations completed!';
+});
+
 // This handles all guest/auth routes automatically
 require __DIR__.'/auth.php';
