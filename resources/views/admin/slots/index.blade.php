@@ -101,6 +101,15 @@
                     <input type="text" name="slot_number" id="edit_slot_number" class="form-control w-full">
                 </div>
                 <div class="form-group mb-4">
+                    <label class="form-label font-medium block text-gray-700 mb-2" for="edit_zone_name">Zone Assignment</label>
+                    <select name="zone_name" id="edit_zone_name" class="form-control w-full" required>
+                        <option value="">-- Select Zone --</option>
+                        @foreach($zonesList ?? [] as $zone)
+                            <option value="{{ $zone->name }}">Zone {{ $zone->name }}</option>
+                        @endforeach
+                    </select>
+                </div>                
+                <div class="form-group mb-4">
                     <label class="form-label font-medium block text-gray-700 mb-2" for="edit_type">Type</label>
                     <select name="type" id="edit_type" class="form-control w-full">
                         <option value="standard">Standard</option>
@@ -133,10 +142,11 @@
 </div>
 
 <script>
-function openEditModal(id, slotNumber, type, status, isActive) {
+function openEditModal(id, slotNumber, zoneName, type, status, isActive) {
     const form = document.getElementById('editForm');
     form.action = `/admin/slots/${id}`;
     document.getElementById('edit_slot_number').value = slotNumber;
+    document.getElementById('edit_zone_name').value = zoneName;    
     document.getElementById('edit_type').value = type;
     document.getElementById('edit_status').value = status;
     document.getElementById('edit_is_active').checked = isActive;

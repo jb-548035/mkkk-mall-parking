@@ -61,7 +61,8 @@ class ParkingSlotController extends Controller
             return strnatcmp($a['name'], $b['name']);
         });
         
-        return view('admin.slots.index', compact('zones'));
+        $zonesList = Zone::orderBy('sort_order')->orderBy('name')->get();
+        return view('admin.slots.index', compact('zones', 'zonesList'));
     }
 
     public function create()
