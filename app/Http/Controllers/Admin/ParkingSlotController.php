@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ParkingSlot;
 use Illuminate\Http\Request;
 use App\Models\ActivityLog;
+use App\Models\Zone;
 
 class ParkingSlotController extends Controller
 {
@@ -65,27 +66,48 @@ class ParkingSlotController extends Controller
 
     public function create()
     {
-        return view('admin.slots.create');
+        // Get all zones for the dropdown
+        $zonesList = Zone::orderBy('sort_order')->orderBy('name')->get();
+        
+        // If no zones exist, show message
+        if ($zonesList->isEmpty()) {
+            return redirect()->route('admin.zones.index')
+                ->with('error', 'Please create a zone first before adding parking slots.');
+        }
+        
+        return view('admin.slots.create', compact('zonesList'));
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
             'slot_number' => 'required|string|max:10|unique:parking_slots',
+            'zone_name' => 'required|string|exists:zones,name',
             'type' => 'required|in:standard,wheelchair,delivery',
             'status' => 'required|in:available,occupied',
             'is_active' => 'boolean',
         ]);
 
-        ParkingSlot::create($validated + ['is_active' => $request->has('is_active')]);
+        // Find the zone ID from the zone name
+        $zone = Zone::where('name', $request->zone_name)->first();
+        
+        ParkingSlot::create([
+            'slot_number' => $request->slot_number,
+            'zone_id' => $zone->id,
+            'zone_name' => $request->zone_name,
+            'type' => $request->type,
+            'status' => $request->status,
+            'is_active' => $request->has('is_active'),
+        ]);
 
         return redirect()->route('admin.slots.index')
-            ->with('success', 'Parking slot created successfully.');
+            ->with('success', 'Parking slot created successfully and assigned to Zone ' . $request->zone_name);
     }
 
     public function edit(ParkingSlot $slot)
     {
-        return view('admin.slots.edit', compact('slot'));
+        $zonesList = Zone::orderBy('sort_order')->orderBy('name')->get();
+        return view('admin.slots.edit', compact('slot', 'zonesList'));
     }
 
     public function show(ParkingSlot $slot)
@@ -98,12 +120,23 @@ class ParkingSlotController extends Controller
     {
         $validated = $request->validate([
             'slot_number' => 'required|string|max:10|unique:parking_slots,slot_number,' . $slot->id,
+            'zone_name' => 'required|string|exists:zones,name',
             'type' => 'required|in:standard,wheelchair,delivery',
             'status' => 'required|in:available,occupied',
             'is_active' => 'boolean',
         ]);
 
-        $slot->update($validated + ['is_active' => $request->has('is_active')]);
+        // Find the zone ID from the zone name
+        $zone = Zone::where('name', $request->zone_name)->first();
+
+        $slot->update([
+            'slot_number' => $request->slot_number,
+            'zone_id' => $zone->id,
+            'zone_name' => $request->zone_name,
+            'type' => $request->type,
+            'status' => $request->status,
+            'is_active' => $request->has('is_active'),
+        ]);
 
         return redirect()->route('admin.slots.index')
             ->with('success', 'Parking slot updated successfully.');

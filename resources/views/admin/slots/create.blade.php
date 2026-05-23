@@ -14,8 +14,22 @@
                 <label class="block text-gray-700 font-medium mb-2">Slot Number</label>
                 <input type="text" name="slot_number" value="{{ old('slot_number') }}" 
                     class="form-control" required>
-                <p class="text-sm text-gray-500 mt-1">Example: A01, W03, D02</p>
+                <p class="text-sm text-gray-500 mt-1">Example: A01, B12, C05, D02</p>
                 @error('slot_number') <p class="text-red-500 text-sm">{{ $message }}</p> @enderror
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-gray-700 font-medium mb-2">Zone Assignment</label>
+                <select name="zone_name" class="form-control" required>
+                    <option value="">-- Select Zone --</option>
+                    @foreach($zonesList as $zone)
+                        <option value="{{ $zone->name }}" {{ old('zone_name') == $zone->name ? 'selected' : '' }}>
+                            Zone {{ $zone->name }} ({{ $zone->total_slots }} slots)
+                        </option>
+                    @endforeach
+                </select>
+                <p class="text-sm text-gray-500 mt-1">Select which zone this slot belongs to.</p>
+                @error('zone_name') <p class="text-red-500 text-sm">{{ $message }}</p> @enderror
             </div>
             
             <div class="mb-4">
